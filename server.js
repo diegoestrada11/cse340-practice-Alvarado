@@ -6,7 +6,16 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 /**
- * Course data - place this after imports, before routes
+ * Import consolidated global middleware
+ */
+import {
+    addImportantLocalVariables,
+    addOptionalLocalVariables,
+    requestLogger
+} from './src/middleware/global.js';
+
+/**
+ * Course data
  */
 const courses = {
     'CS121': {
@@ -49,7 +58,7 @@ const courses = {
  */
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const PORT = process.env.PORT || 3000;
-const name = process.env.NAME;
+const name = process.env.NAME || 'Guest';
 
 // Recreate __filename and __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -63,61 +72,20 @@ const app = express();
 /**
  * Configure Express middleware
  */
-// Setup public directory
+// Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Setup EJS templating engine
+// Set EJS as the templating engine
 app.set('view engine', 'ejs');
-
-// Setup views directory
 app.set('views', path.join(__dirname, 'src/views'));
 
 /**
- * Global template variables
+ * Apply global middleware (moved to src/middleware/global.js)
+ * Order matters: logging first, then important variables, then optional variables
  */
-app.use((req, res, next) => {
-    res.locals.NODE_ENV = NODE_ENV.toLowerCase() || 'production';
-    next();
-});
-
-// Middleware to add current year for templates
-app.use((req, res, next) => {
-    res.locals.currentYear = new Date().getFullYear();
-    next();
-});
-
-// Global middleware for time-based greeting
-app.use((req, res, next) => {
-    const currentHour = new Date().getHours();
-    if (currentHour < 12) {
-        res.locals.greeting = 'Good morning!';
-    } else if (currentHour < 17) {
-        res.locals.greeting = 'Good afternoon!';
-    } else {
-        res.locals.greeting = 'Good evening!';
-    }
-    next();
-});
-
-// Global middleware for random theme selection
-app.use((req, res, next) => {
-    const themes = ['blue-theme', 'green-theme', 'red-theme'];
-    const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-    res.locals.bodyClass = randomTheme;
-    next();
-});
-
-// Global middleware to share query parameters with templates
-app.use((req, res, next) => {
-    res.locals.queryParams = req.query;
-    next();
-});
-
-// Logging middleware
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    next();
-});
+app.use(requestLogger);
+app.use(addImportantLocalVariables);
+app.use(addOptionalLocalVariables);
 
 /**
  * Routes
@@ -166,9 +134,13 @@ app.get('/catalog/:courseId', (req, res, next) => {
         return next(err);
     }
 
+    // Get sort parameter (default to 'time')
     const sortBy = req.query.sort || 'time';
+
+    // Create a copy to sort
     let sortedSections = [...course.sections];
 
+    // Sorting logic
     switch (sortBy) {
         case 'professor':
             sortedSections.sort((a, b) => a.professor.localeCompare(b.professor));
@@ -178,6 +150,7 @@ app.get('/catalog/:courseId', (req, res, next) => {
             break;
         case 'time':
         default:
+            // Keep original time order
             break;
     }
 
@@ -209,7 +182,7 @@ app.get('/demo', addDemoHeaders, (req, res) => {
 });
 
 /**
- * Catch-all route for 404 errors
+ * Catch-all route for 404 errors (pass to error handler)
  */
 app.use((req, res, next) => {
     const err = new Error('Page Not Found');
@@ -227,6 +200,7 @@ app.use((err, req, res, next) => {
     const status = err.status || 500;
     const template = status === 404 ? '404' : '500';
 
+    // Render appropriate error template from views/errors/
     res.status(status).render(`errors/${template}`, {
         title: status === 404 ? 'Page Not Found' : 'Server Error',
         error: err.message,
@@ -235,12 +209,12 @@ app.use((err, req, res, next) => {
 });
 
 /**
- * Start WebSocket server in development mode
+ * Start WebSocket server in development mode (live-reload helper)
  */
 if (NODE_ENV.includes('dev')) {
     (async () => {
-        const ws = await import('ws');
         try {
+            const ws = await import('ws');
             const wsPort = parseInt(PORT) + 1;
             const wsServer = new ws.WebSocketServer({ port: wsPort });
             wsServer.on('listening', () => {
