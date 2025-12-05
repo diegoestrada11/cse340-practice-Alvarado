@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+    <header>
+        <h1>Faculty Directory</h1>
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/about">About</a> |
+            <a href="/catalog">Course Catalog</a> |
+            <a href="/faculty">Faculty Directory</a>
+        </nav>
+    </header>
+
+    <main>
+        <h2>All Faculty</h2>
+
+        <!-- Sorting Options -->
+        <div class="sort-bar">
+            <p>Sort by:</p>
+            <a href="/faculty?sort=department" 
+                class="<%= currentSort === 'department' ? 'active' : '' %>">
+                Department
+            </a>
+            |
+            <a href="/faculty?sort=name" 
+                class="<%= currentSort === 'name' ? 'active' : '' %>">
+                Name
+            </a>
+            |
+            <a href="/faculty?sort=title"
+                class="<%= currentSort === 'title' ? 'active' : '' %>">
+                Title
+            </a>
+        </div>
+
+        <!-- Faculty List -->
+        <ul class="faculty-list">
+            <% faculty.forEach(member => { %>
+                <li class="faculty-card">
+                    <h3>
+                        <a href="/faculty/<%= member.id %>">
+                            <%= member.name %>
+                        </a>
+                    </h3>
+                    <p><strong>Department:</strong> <%= member.department %></p>
+                    <p><strong>Title:</strong> <%= member.title %></p>
+                </li>
+            <% }); %>
+        </ul>
+    </main>
+
+</body>
+</html>
